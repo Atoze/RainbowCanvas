@@ -1,0 +1,194 @@
+function main( x, y, p )
+  if not firstDraw then
+    -- 塗りつぶし機能は連続で使えない
+    if bs_param10() == 1 then
+      return 0
+    end
+    -- 描画頻度
+    local updateDist = bs_param8()
+    local distance = bs_distance(lastDrawX - x, lastDrawY - y)
+    if distance < updateDist then
+        return 0
+    end
+  end
+
+  local w = bs_width()
+  local saturation = bs_param1() / 100
+  local value = bs_param2() / 100
+  local a = bs_opaque() * 255
+  local hue = bs_param7() * 3.6 / 360
+
+  if bs_param9() == 1 or bs_param10() == 1 then
+    x = round(x)
+    y = round(y)
+    local w = round(w)
+    local h = w
+    if bs_param10() == 1 then
+      x = canvasWidth / 2
+      y = canvasHeight / 2
+      w = canvasWidth
+      h = canvasHeight
+    end
+
+    local gradientWidth = bs_param3()
+    local gradientHeight = bs_param4()
+    if bs_param9() == 1 or (gradientWidth > 0 and gradientHeight > 0) then
+      for calcX = x - (w / 2), x + (w / 2), 1
+      do
+        for calcY = y - (h / 2), y + (h / 2), 1
+        do
+          local r, g, b = calc_gradient(calcX, calcY, hue, saturation, value)
+          -- 滑らか設定がONになっているときは円の当たり判定を図る
+          local sqrt = (w / 2) * (w / 2);
+          local collision = (calcX - x) * (calcX - x) + (calcY - y) * (calcY - y) < sqrt
+          if bs_param10() == 1 or collision then
+            bs_rect(calcX, calcY, 1, 1, r, g, b, a)
+          end
+        end
+      end
+    elseif gradientWidth > 0 then
+      for calcX = x - (w / 2), x + (w / 2), 1
+      do
+        local r, g, b = calc_gradient(calcX, 1, hue, saturation, value)
+        bs_rect(calcX, 0, 1, h, r, g, b, a)
+      end
+    elseif gradientHeight > 0 then
+      for calcY = y - (h / 2), y + (h / 2), 1
+      do
+        local r, g, b = calc_gradient(0, calcY, hue, saturation, value)
+        bs_rect(1, calcY, w, 1, r, g, b, a)
+      end
+    else
+      return 0
+    end
+  else
+    local r, g, b = calc_gradient(x, y, hue, saturation, value)
+    bs_ellipse(x, y, w, w, 0, r, g, b, a)
+  end
+
+  lastDrawX = x
+  lastDrawY = y
+  firstDraw = false
+  return 1
+end
+
+function calc_gradient(x, y, hue, saturation, value)
+  local gradientWidth = canvasWidth * bs_param3() / 100
+  local gradientHeight = canvasHeight * bs_param4() / 100
+  local widthPercent = 0
+  local heightPercent = 0
+
+  if gradientWidth > 0 then
+    widthPercent = x / gradientWidth
+    if bs_param5() == 1 then
+      widthPercent = 1 - widthPercent
+    end
+  end
+  if gradientHeight > 0 then
+    heightPercent = y / gradientHeight
+    if bs_param6() == 1 then
+      heightPercent = 1 - heightPercent
+    end
+  end
+  hue = widthPercent + heightPercent + hue
+
+  -- HSVへ変換
+  local r, g, b, i, f, p, q, t
+  i = round(hue * 6)
+  f = hue * 6 - i
+  p = value * (1 - saturation)
+  q = value * (1 - f * saturation)
+  t = value * (1 - (1 - f) * saturation)
+
+  local remainder = i % 6
+  if remainder == 0 then
+    r = value
+    g = t
+    b = p
+  elseif remainder == 1 then
+    r = q
+    g = value
+    b = p
+  elseif remainder == 2 then
+    r = p
+    g = value
+    b = t
+  elseif remainder == 3 then
+    r = p
+    g = q
+    b = value
+  elseif remainder == 4 then
+    r = t
+    g = p
+    b = value
+  elseif remainder == 5 then
+    r = value
+    g = p
+    b = q
+  end
+  -- R, G, B
+  return round(r * 255), round(g * 255), round(b * 255)
+end
+
+function round(num)
+  local roundedVal = math.floor(num)
+  return roundedVal
+end
+
+-- 彩度
+function param1()
+  return "彩度", 0, 100, 100
+end
+
+-- 明度
+function param2()
+  return "明度", 0, 100, 100
+end
+
+-- 画面幅に対してどれぐらいの割合でグラデかけるか
+function param3()
+  return "グラデ割合（横幅%）", 0, 100, 100
+end
+
+-- 画面高さに対してどれぐらいの割合でグラデかけるか
+function param4()
+  return "グラデ割合（縦幅%）", 0, 100, 0
+end
+
+-- 反転（横軸）
+function param5()
+  return "反転（横軸）", 0, 1, 0
+end
+
+-- 反転（縦軸）
+function param6()
+  return "反転（縦軸）", 0, 1, 0
+end
+
+-- 初期Hue
+function param7()
+  return "開始色ずらし", 0, 100, 0
+end
+
+-- 描画更新頻度
+function param8()
+  return "描画頻度", 1, 100, 4
+end
+
+-- ボックスで描画
+function param9()
+  return "滑らか色（重め＆アンチエイリアス無）", 0, 1, 0
+end
+
+-- 塗りつぶし
+function param10()
+  return "全画面塗りつぶし（激重）", 0, 1, 0
+end
+
+
+lastDrawX = 0
+lastDrawY = 0
+firstDraw = true
+
+canvasWidth = bs_canvas_width()
+canvasHeight = bs_canvas_height()

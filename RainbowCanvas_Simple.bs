@@ -1,0 +1,82 @@
+function main( x, y, p )
+  if not firstDraw then
+    -- 描画頻度
+    local updateDist = bs_param3()
+    local distance = bs_distance(lastDrawX - x, lastDrawY - y)
+    if distance < updateDist then
+        return 0
+    end
+  end
+
+  local hue = x / canvasWidth
+  local saturation = bs_param1() / 100
+  local value = bs_param2() / 100
+  local a = bs_opaque() * 255
+
+  -- HSVへ変換
+  local r, g, b, i, f, p, q, t
+  i = math.floor(hue * 6)
+  f = hue * 6 - i
+  p = value * (1 - saturation)
+  q = value * (1 - f * saturation)
+  t = value * (1 - (1 - f) * saturation)
+
+  local remainder = i % 6
+  if remainder == 0 then
+    r = value
+    g = t
+    b = p
+  elseif remainder == 1 then
+    r = q
+    g = value
+    b = p
+  elseif remainder == 2 then
+    r = p
+    g = value
+    b = t
+  elseif remainder == 3 then
+    r = p
+    g = q
+    b = value
+  elseif remainder == 4 then
+    r = t
+    g = p
+    b = value
+  elseif remainder == 5 then
+    r = value
+    g = p
+    b = q
+  end
+  -- R, G, B
+  r = math.floor(r * 255 + 0.5)
+  g = math.floor(g * 255 + 0.5)
+  b = math.floor(b * 255 + 0.5)
+
+  local w = bs_width()
+  bs_ellipse(x, y, w, w, 0, r, g, b, a)
+
+  lastDrawX = x
+  lastDrawY = y
+  firstDraw = false
+  return 1
+end
+
+-- 彩度
+function param1()
+  return "彩度", 0, 100, 100
+end
+
+-- 明度
+function param2()
+  return "明度", 0, 100, 100
+end
+
+-- 描画更新頻度
+function param3()
+  return "描画頻度", 1, 20, 4
+end
+
+lastDrawX = 0
+lastDrawY = 0
+canvasWidth = bs_canvas_width()
+firstDraw = true
